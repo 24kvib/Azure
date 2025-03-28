@@ -8,8 +8,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const TOKEN = process.env.TOKEN;
-const CLIENT_ID = "1343124162142666815";
+const TOKEN = process.env.TOKEN; // Only the TOKEN will come from .env
+const CLIENT_ID = "1343124162142666815";  // Directly in the script
 const GUILD_ID = "1222570193096671343";  // Your Guild ID
 const CHANNEL_ID = "1344647779078766622"; // The Channel ID to send the embed to
 const ROLE_ID = "1316376786208034816"; // Role required to set the channel
@@ -17,8 +17,8 @@ const ROLE_ID = "1316376786208034816"; // Role required to set the channel
 let statusChannelId = CHANNEL_ID; // Use the pre-defined channel ID
 let statusMessageId = null; // Stores the message ID of the status embed
 
-if (!TOKEN || !CLIENT_ID || !GUILD_ID || !CHANNEL_ID) {
-    console.error('Missing environment variables. Make sure to set BOT_TOKEN, CLIENT_ID, GUILD_ID, and CHANNEL_ID in the .env file.');
+if (!TOKEN) {
+    console.error('Missing environment variable. Make sure to set the BOT_TOKEN in the .env file.');
     process.exit(1);
 }
 
@@ -86,15 +86,15 @@ client.on('interactionCreate', async (interaction) => {
             new ButtonBuilder()
                 .setLabel('View Status')
                 .setStyle(ButtonStyle.Link)
-                .setURL('https://skyluxe.statuspage.io/#')
+                .setURL('https://azure5.statuspage.io/')  // Corrected URL
         );
 
-        const channel = await client.channels.fetch(statusChannelId).catch(() => null);
-        if (channel) {
+        try {
+            const channel = await client.channels.fetch(statusChannelId);
             const message = await channel.send({ embeds: [embed], components: [button] });
             statusMessageId = message.id; // Save message ID for future updates
-        } else {
-            return interaction.reply({ content: 'Invalid channel ID provided.', ephemeral: true });
+        } catch (error) {
+            return interaction.reply({ content: 'Failed to send the status embed. Invalid channel or permission issue.', ephemeral: true });
         }
 
         await interaction.reply({ content: `Status updates will now be sent to the channel with ID: ${statusChannelId}.`, ephemeral: true });
@@ -141,7 +141,7 @@ async function updateStatusEmbed() {
         new ButtonBuilder()
             .setLabel('View Status')
             .setStyle(ButtonStyle.Link)
-            .setURL('https://skyluxe.statuspage.io/#')
+            .setURL('https://azure5.statuspage.io/')  // Corrected URL
     );
 
     try {
@@ -166,3 +166,4 @@ http.createServer((req, res) => {
 }).listen(8080);
 
 console.log('Ping server is running!');
+
