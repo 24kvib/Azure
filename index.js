@@ -1,6 +1,6 @@
-import {
-    Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder,
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits
+import { 
+    Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, 
+    ActionRowBuilder, ButtonBuilder, ButtonStyle 
 } from 'discord.js';
 import http from 'http';
 import fetch from 'node-fetch';
@@ -10,14 +10,15 @@ dotenv.config();
 
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = "1343124162142666815";
-const GUILD_ID = "1222570193096671343";
-const CHANNEL_ID = "1344647779078766622";
+const GUILD_ID = "1222570193096671343";  // Your Guild ID
+const CHANNEL_ID = "1344647779078766622"; // The Channel ID to send the embed to
+const ROLE_ID = "1316376786208034816"; // Role required to set the channel
 
-let statusChannelId = CHANNEL_ID;
-let statusMessageId = null;
+let statusChannelId = CHANNEL_ID; // Use the pre-defined channel ID
+let statusMessageId = null; // Stores the message ID of the status embed
 
-if (!TOKEN) {
-    console.error('Missing BOT TOKEN. Set it in the .env file.');
+if (!TOKEN || !CLIENT_ID || !GUILD_ID || !CHANNEL_ID) {
+    console.error('Missing environment variables. Make sure to set BOT_TOKEN, CLIENT_ID, GUILD_ID, and CHANNEL_ID in the .env file.');
     process.exit(1);
 }
 
@@ -33,12 +34,11 @@ const client = new Client({
 const commands = [
     new SlashCommandBuilder()
         .setName('server-info')
-        .setDescription('Get the server status.')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .setDescription('Server status updates.')
         .addChannelOption(option =>
             option.setName('channel')
-                .setDescription('Channel to send updates in')
-                .setRequired(false)
+                .setDescription('The channel to send updates in')
+                .setRequired(false)  // Channel ID is now predefined
         ),
 ].map(command => command.toJSON());
 
@@ -46,9 +46,9 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 (async () => {
     try {
-        console.log('Registering application (/) commands...');
-        await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
-        console.log('Commands registered successfully!');
+        console.log('Started refreshing application (/) commands.');
+        await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
+        console.log('Successfully reloaded application (/) commands.');
     } catch (error) {
         console.error('Error registering commands:', error);
     }
@@ -56,23 +56,25 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
-    setInterval(updateStatusEmbed, 60000);
+    setInterval(updateStatusEmbed, 60000); // Update the embed every 60 seconds
 });
 
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isCommand()) return;
 
     if (interaction.commandName === 'server-info') {
+        // Optionally, let the user change the channel ID
         if (interaction.options.getChannel('channel')) {
             statusChannelId = interaction.options.getChannel('channel').id;
         }
 
+        // Send initial status embed
         const { incidents, maintenance, components } = await getStatus();
 
         const embed = new EmbedBuilder()
             .setColor('#0F52BA')
             .setTitle('Server Status')
-            .setDescription('Atlassian services status update.')
+            .setDescription('Current status of our services.')
             .addFields(
                 { name: 'Incidents', value: incidents, inline: false },
                 { name: 'Maintenance', value: maintenance, inline: false },
@@ -84,34 +86,33 @@ client.on('interactionCreate', async (interaction) => {
             new ButtonBuilder()
                 .setLabel('View Status')
                 .setStyle(ButtonStyle.Link)
-                .setURL('https://status.atlassian.com/')
+                .setURL('https://skyluxe.statuspage.io/#')
         );
 
-        try {
-            const channel = await client.channels.fetch(statusChannelId);
+        const channel = await client.channels.fetch(statusChannelId).catch(() => null);
+        if (channel) {
             const message = await channel.send({ embeds: [embed], components: [button] });
-            statusMessageId = message.id;
-        } catch (error) {
-            return interaction.reply({ content: 'Failed to send the status embed. Check channel permissions.', ephemeral: true });
+            statusMessageId = message.id; // Save message ID for future updates
+        } else {
+            return interaction.reply({ content: 'Invalid channel ID provided.', ephemeral: true });
         }
 
-        await interaction.reply({ content: `Status updates will be sent to: <#${statusChannelId}>`, ephemeral: true });
+        await interaction.reply({ content: `Status updates will now be sent to the channel with ID: ${statusChannelId}.`, ephemeral: true });
     }
 });
 
 async function getStatus() {
     try {
-        const response = await fetch('https://status.atlassian.com/api/v2/summary.json');
+        const response = await fetch('https://azure5.statuspage.io/api/v2/summary.json');
         if (!response.ok) throw new Error('Failed to fetch status.');
         const data = await response.json();
-
         return {
-            incidents: data.incidents.map(i => `**${i.name}**: ${i.status}`).join('\n') || 'No active incidents.',
+            incidents: data.incidents.map(incident => `**${incident.name}**: ${incident.status}`).join('\n') || 'No active incidents.',
             maintenance: data.scheduled_maintenances.map(m => `**${m.name}**: ${m.status}`).join('\n') || 'No scheduled maintenance.',
-            components: data.components.map(c => `**${c.name}**: ${c.status}`).join('\n') || 'All systems operational.',
+            components: data.components.map(c => `**${c.name}**: ${c.status}`).join('\n'),
         };
     } catch (error) {
-        console.error('Error fetching Atlassian status:', error);
+        console.error('Error fetching server status:', error);
         return {
             incidents: 'Error fetching data.',
             maintenance: 'Error fetching data.',
@@ -121,14 +122,14 @@ async function getStatus() {
 }
 
 async function updateStatusEmbed() {
-    if (!statusChannelId || !statusMessageId) return;
+    if (!statusChannelId || !statusMessageId) return; // Don't update if no channel is set
 
     const { incidents, maintenance, components } = await getStatus();
 
     const embed = new EmbedBuilder()
         .setColor('#0F52BA')
         .setTitle('Server Status')
-        .setDescription('Atlassian services status update.')
+        .setDescription('Current status of our services.')
         .addFields(
             { name: 'Incidents', value: incidents, inline: false },
             { name: 'Maintenance', value: maintenance, inline: false },
@@ -140,7 +141,7 @@ async function updateStatusEmbed() {
         new ButtonBuilder()
             .setLabel('View Status')
             .setStyle(ButtonStyle.Link)
-            .setURL('https://status.atlassian.com/')
+            .setURL('https://azure5.statuspage.io/#')
     );
 
     try {
