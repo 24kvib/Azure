@@ -86,10 +86,14 @@ client.on('interactionCreate', async (interaction) => {
             new ButtonBuilder()
                 .setLabel('View Status')
                 .setStyle(ButtonStyle.Link)
-                .setURL('https://skyluxe.statuspage.io/#')
+                .setURL('https://azure5.statuspage.io/') // Updated URL
         );
 
-        const channel = await client.channels.fetch(statusChannelId).catch(() => null);
+        const channel = await client.channels.fetch(statusChannelId).catch((err) => {
+            console.error('Error fetching channel:', err);
+            return null;
+        });
+
         if (channel) {
             const message = await channel.send({ embeds: [embed], components: [button] });
             statusMessageId = message.id; // Save message ID for future updates
@@ -103,7 +107,7 @@ client.on('interactionCreate', async (interaction) => {
 
 async function getStatus() {
     try {
-        const response = await fetch('https://azure5.statuspage.io/api/v2/summary.json');
+        const response = await fetch('https://azure5.statuspage.io/api/v2/summary.json'); // Updated URL
         if (!response.ok) throw new Error('Failed to fetch status.');
         const data = await response.json();
         return {
@@ -141,7 +145,7 @@ async function updateStatusEmbed() {
         new ButtonBuilder()
             .setLabel('View Status')
             .setStyle(ButtonStyle.Link)
-            .setURL('https://azure5.statuspage.io/#')
+            .setURL('https://azure5.statuspage.io/') // Updated URL
     );
 
     try {
@@ -166,3 +170,4 @@ http.createServer((req, res) => {
 }).listen(8080);
 
 console.log('Ping server is running!');
+
